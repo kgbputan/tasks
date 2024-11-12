@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>My Task Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script> <!-- SheetJS for Excel export -->
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -39,12 +40,13 @@
             align-items: center;
             justify-content: space-between;
             margin: 15px 0;
-            padding: 10px;
+            padding: 15px;
             border-radius: 8px;
             transition: background-color 0.3s ease;
+            background-color: #f9f9f9;
         }
         .task-item:hover {
-            background-color: #f0f0f0;
+            background-color: #e9e9f3;
         }
         .task-item.completed {
             text-decoration: line-through;
@@ -57,9 +59,13 @@
             flex-grow: 1;
             font-size: 18px;
         }
-        .reminder {
-            color: #ff6347;
+        .timer {
             font-weight: bold;
+            color: #28a745;
+            background-color: #fff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
         }
         .priority-low {
             background-color: #d3f9d8; /* Green */
@@ -101,6 +107,12 @@
             border-radius: 4px;
             border: 1px solid #ccc;
         }
+        #new-task-time {
+            margin-top: 10px;
+            padding: 5px;
+            font-size: 14px;
+            width: 60%;
+        }
     </style>
 </head>
 <body>
@@ -120,27 +132,36 @@
             <option value="high">High</option>
         </select>
 
+        <!-- Timer Input for New Task -->
+        <input type="number" id="new-task-time" placeholder="Minutes for Timer" min="1" style="padding: 5px; width: 60%; margin-top: 10px; border-radius: 4px; border: 1px solid #ccc;">
+
         <button class="button" id="add-task-btn">Add Task</button>
+
+        <!-- Button to download tasks as Excel -->
+        <button class="button" id="download-tasks-btn">Download Tasks as Excel</button>
     </div>
 
     <script>
-        // Load tasks from localStorage
+        // Requesting permission for notifications
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
         let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
 
-        // DOM Elements
         const taskList = document.getElementById('task-list');
         const addTaskBtn = document.getElementById('add-task-btn');
+        const downloadTasksBtn = document.getElementById('download-tasks-btn');
         const newTaskInput = document.getElementById('new-task');
         const taskPrioritySelect = document.getElementById('task-priority');
+        const taskTimeInput = document.getElementById('new-task-time');
 
-        // Function to render tasks on the page
+        // Function to render tasks
         function renderTasks() {
-            taskList.innerHTML = ''; // Clear current tasks
+            taskList.innerHTML = '';
             tasks.forEach((task, index) => {
                 const li = document.createElement('li');
-                li.classList.add('task-item');
-                // Apply priority-specific styles
-                li.classList.add(`priority-${task.priority}`);
+                li.classList.add('task-item', `priority-${task.priority}`);
 
                 if (task.completed) {
                     li.classList.add('completed');
@@ -149,9 +170,15 @@
                 li.innerHTML = `
                     <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTaskCompletion(${index})">
                     <span class="task-text">${task.text}</span>
+                    ${task.timer > 0 ? `<span class="timer">${formatTime(task.timer)}</span>` : ''}
                     <button class="remove-btn" onclick="removeTask(${index})">Remove</button>
                 `;
                 taskList.appendChild(li);
+
+                // Start the timer if there's one set
+                if (task.timer > 0 && !task.completed) {
+                    startTimer(index);
+                }
             });
         }
 
@@ -159,26 +186,74 @@
         function addTask() {
             const taskText = newTaskInput.value.trim();
             const priority = taskPrioritySelect.value;
-            
-            if (taskText) {
-                tasks.push({ text: taskText, completed: false, priority });
-                newTaskInput.value = ''; // Clear input field
-                saveTasks(); // Save tasks to localStorage
-                renderTasks();
+            const timer = parseInt(taskTimeInput.value) || 0;
+
+            if (!taskText) {
+                alert("Please enter a task before adding it.");
+                return;
+            }
+
+            const newTask = { 
+                text: taskText, 
+                completed: false, 
+                priority, 
+                timer,
+                createdAt: new Date().toLocaleString(),
+                completedAt: null
+            };
+            tasks.push(newTask);
+            newTaskInput.value = '';
+            taskTimeInput.value = '';
+            saveTasks();
+            renderTasks();
+        }
+
+        // Function to format the timer in DD-HH-MM
+        function formatTime(totalMinutes) {
+            const days = Math.floor(totalMinutes / (24 * 60));
+            const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+            const minutes = totalMinutes % 60;
+            return `${days}d ${hours}h ${minutes}m`;
+        }
+
+        // Start timer for a task
+        function startTimer(index) {
+            let task = tasks[index];
+            const interval = setInterval(() => {
+                if (task.timer > 0) {
+                    task.timer--;
+                    saveTasks();
+                    renderTasks();
+                } else {
+                    clearInterval(interval);
+                    sendNotification(task.text, `${task.priority} Priority Task Reminder!`);
+                }
+            }, 60000); // Update every minute
+        }
+
+        // Send notification
+        function sendNotification(taskText, title = "Task Reminder") {
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body: `Reminder: ${taskText}`,
+                    icon: "https://example.com/icon.png"
+                });
             }
         }
 
         // Toggle task completion
         function toggleTaskCompletion(index) {
-            tasks[index].completed = !tasks[index].completed;
-            saveTasks(); // Save updated tasks to localStorage
+            const task = tasks[index];
+            task.completed = !task.completed;
+            task.completedAt = task.completed ? new Date().toLocaleString() : null;
+            saveTasks();
             renderTasks();
         }
 
         // Remove task
         function removeTask(index) {
             tasks.splice(index, 1);
-            saveTasks(); // Save updated tasks to localStorage
+            saveTasks();
             renderTasks();
         }
 
@@ -187,8 +262,28 @@
             localStorage.setItem('tasks', JSON.stringify(tasks));
         }
 
-        // Add event listener to the add task button
+        // Download tasks as Excel
+        function downloadTasks() {
+            const ws_data = tasks.map(task => ({
+                Task: task.text,
+                Priority: task.priority,
+                Status: task.completed ? 'Completed' : 'Pending',
+                CreatedAt: task.createdAt,
+                CompletedAt: task.completedAt || 'N/A',
+                Timer: task.timer > 0 ? formatTime(task.timer) : 'N/A'
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Tasks");
+
+            // Create a downloadable link
+            XLSX.writeFile(wb, 'Tasks_Tracker.xlsx');
+        }
+
+        // Event listeners
         addTaskBtn.addEventListener('click', addTask);
+        downloadTasksBtn.addEventListener('click', downloadTasks);
 
         // Render tasks when the page loads
         renderTasks();
