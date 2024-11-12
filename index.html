@@ -225,8 +225,13 @@
                     saveTasks();
                     renderTasks();
                 } else {
-                    clearInterval(interval);
+                    // Mark task as completed when timer ends
+                    task.completed = true;
+                    task.completedAt = new Date().toLocaleString();
+                    clearInterval(interval); // Stop the timer
                     sendNotification(task.text, `${task.priority} Priority Task Reminder!`);
+                    saveTasks();
+                    renderTasks(); // Update the UI to show task as completed
                 }
             }, 60000); // Update every minute
         }
