@@ -142,13 +142,11 @@
     </div>
 
     <script>
-        // Requesting permission for notifications
         if (Notification.permission !== "granted") {
             Notification.requestPermission();
         }
 
         let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-
         const taskList = document.getElementById('task-list');
         const addTaskBtn = document.getElementById('add-task-btn');
         const downloadTasksBtn = document.getElementById('download-tasks-btn');
@@ -156,16 +154,12 @@
         const taskPrioritySelect = document.getElementById('task-priority');
         const taskTimeInput = document.getElementById('new-task-time');
 
-        // Function to render tasks
         function renderTasks() {
             taskList.innerHTML = '';
             tasks.forEach((task, index) => {
                 const li = document.createElement('li');
                 li.classList.add('task-item', `priority-${task.priority}`);
-
-                if (task.completed) {
-                    li.classList.add('completed');
-                }
+                if (task.completed) li.classList.add('completed');
 
                 li.innerHTML = `
                     <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTaskCompletion(${index})">
@@ -175,23 +169,17 @@
                 `;
                 taskList.appendChild(li);
 
-                // Start the timer if there's one set
-                if (task.timer > 0 && !task.completed) {
-                    startTimer(index);
-                }
+                if (task.timer > 0 && !task.completed) startTimer(index);
             });
         }
 
-        // Add new task
         function addTask() {
             const taskText = newTaskInput.value.trim();
             const priority = taskPrioritySelect.value;
             const timer = parseInt(taskTimeInput.value) || 0;
 
-            if (!taskText) {
-                alert("Please enter a task before adding it.");
-                return;
-            }
+            if (!taskText) return alert("Please enter a task before adding it.");
+            if (timer <= 0) return alert("Please enter a valid time for the task timer.");
 
             const newTask = { 
                 text: taskText, 
@@ -208,7 +196,6 @@
             renderTasks();
         }
 
-        // Function to format the timer in DD-HH-MM
         function formatTime(totalMinutes) {
             const days = Math.floor(totalMinutes / (24 * 60));
             const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
@@ -216,7 +203,6 @@
             return `${days}d ${hours}h ${minutes}m`;
         }
 
-        // Start timer for a task
         function startTimer(index) {
             let task = tasks[index];
             const interval = setInterval(() => {
@@ -225,28 +211,21 @@
                     saveTasks();
                     renderTasks();
                 } else {
-                    // Mark task as completed when timer ends
-                    task.completed = true;
-                    task.completedAt = new Date().toLocaleString();
-                    clearInterval(interval); // Stop the timer
+                    clearInterval(interval);
                     sendNotification(task.text, `${task.priority} Priority Task Reminder!`);
-                    saveTasks();
-                    renderTasks(); // Update the UI to show task as completed
                 }
-            }, 60000); // Update every minute
+            }, 60000);
         }
 
-        // Send notification
         function sendNotification(taskText, title = "Task Reminder") {
             if (Notification.permission === "granted") {
                 new Notification(title, {
                     body: `Reminder: ${taskText}`,
-                    icon: "https://github.com/kgbputan/tasks/blob/main/icon.png"
+                    icon: "https://example.com/icon.png"
                 });
             }
         }
 
-        // Toggle task completion
         function toggleTaskCompletion(index) {
             const task = tasks[index];
             task.completed = !task.completed;
@@ -255,19 +234,16 @@
             renderTasks();
         }
 
-        // Remove task
         function removeTask(index) {
             tasks.splice(index, 1);
             saveTasks();
             renderTasks();
         }
 
-        // Save tasks to localStorage
         function saveTasks() {
             localStorage.setItem('tasks', JSON.stringify(tasks));
         }
 
-        // Download tasks as Excel
         function downloadTasks() {
             const ws_data = tasks.map(task => ({
                 Task: task.text,
@@ -282,15 +258,12 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Tasks");
 
-            // Create a downloadable link
             XLSX.writeFile(wb, 'Tasks_Tracker.xlsx');
         }
 
-        // Event listeners
         addTaskBtn.addEventListener('click', addTask);
         downloadTasksBtn.addEventListener('click', downloadTasks);
 
-        // Render tasks when the page loads
         renderTasks();
     </script>
 </body>
