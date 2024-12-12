@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>My Task Tracker</title>
+    <title>My Floating Task Tracker</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script> <!-- SheetJS for Excel export -->
     <style>
         body {
@@ -13,23 +13,25 @@
             color: #333;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
+            height: 2000px; /* Just for demonstration of floating effect */
         }
+        /* Floating container */
         .container {
-            width: 100%;
-            max-width: 600px;
-            text-align: center;
+            position: fixed;  /* Fix it to the screen */
+            top: 20px;  /* Distance from top */
+            right: 20px;  /* Distance from right */
+            width: 300px;
+            max-width: 100%;
             padding: 20px;
             background: #fff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
+            z-index: 1000; /* Make sure it's on top of other content */
         }
         h1 {
             color: #6C63FF;
+            font-size: 24px;
+            margin-bottom: 20px;
         }
         .task-list {
             list-style: none;
@@ -39,10 +41,9 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin: 15px 0;
-            padding: 15px;
+            margin: 10px 0;
+            padding: 10px;
             border-radius: 8px;
-            transition: background-color 0.3s ease;
             background-color: #f9f9f9;
         }
         .task-item:hover {
@@ -57,7 +58,7 @@
         }
         .task-text {
             flex-grow: 1;
-            font-size: 18px;
+            font-size: 16px;
         }
         .timer {
             font-weight: bold;
@@ -84,7 +85,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 20px;
+            margin-top: 10px;
         }
         .button:hover {
             background-color: #5a54e1;
@@ -118,7 +119,7 @@
 <body>
 
     <div class="container">
-        <h1>My Task Tracker</h1>
+        <h1>My Floating Task Tracker</h1>
         <ul class="task-list" id="task-list">
             <!-- Tasks will be listed here dynamically -->
         </ul>
@@ -164,11 +165,12 @@
                 li.innerHTML = `
                     <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTaskCompletion(${index})">
                     <span class="task-text">${task.text}</span>
-                    ${task.timer > 0 ? `<span class="timer">${formatTime(task.timer)}</span>` : ''}
+                    ${task.timer > 0 && !task.completed ? `<span class="timer">${formatTime(task.timer)}</span>` : ''}
                     <button class="remove-btn" onclick="removeTask(${index})">Remove</button>
                 `;
                 taskList.appendChild(li);
 
+                // Start the timer if the task is active and has time remaining
                 if (task.timer > 0 && !task.completed) startTimer(index);
             });
         }
@@ -212,9 +214,13 @@
                     renderTasks();
                 } else {
                     clearInterval(interval);
+                    task.completed = true;  // Mark task as complete when timer ends
+                    task.completedAt = new Date().toLocaleString();
+                    saveTasks();
+                    renderTasks();
                     sendNotification(task.text, `${task.priority} Priority Task Reminder!`);
                 }
-            }, 60000);
+            }, 60000); // Update every minute
         }
 
         function sendNotification(taskText, title = "Task Reminder") {
